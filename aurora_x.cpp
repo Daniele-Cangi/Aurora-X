@@ -234,12 +234,20 @@ struct Engine {
   }
 };
 
-int main(){
+bool aurora_run(const std::string& intention, Engine* outE = nullptr) {
   ios::sync_with_stdio(false);
   cout<<"=== AURORA-X — Extreme Field Orchestrator ===\n";
-  string intention = "deadline:600; reliability:0.99; duty:0.01; optical:on; backscatter:on; ris:16";
-  Engine E; E.init(intention);
-  bool ok = E.run();
+  Engine* E = outE ? outE : new Engine();
+  E->init(intention);
+  bool ok = E->run();
   cout<<(ok? ">>> SUCCESS\n" : ">>> INCOMPLETE — ritenta con più RIS/epsilon\n");
+  return ok;
+}
+
+#ifndef AURORA_NO_MAIN
+int main(){
+  std::string intention = "deadline:600; reliability:0.99; duty:0.01; optical:on; backscatter:on; ris:16";
+  bool ok = aurora_run(intention);
   return ok?0:1;
 }
+#endif
