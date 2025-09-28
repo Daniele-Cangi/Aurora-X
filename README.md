@@ -2,7 +2,17 @@
 # Aurora X
 
 ## Performance Results
+### Energy Consumption vs Deadline Constraint
 
+![Energy Consumption Chart](assets/energy_deadline_chart.svg)
+
+### Adaptive FEC Overhead vs System Parameters
+
+![FEC Adaptation Chart](assets/fec_adaptation_chart.svg)
+
+### RIS Configuration Impact on SNR Performance
+
+![RIS SNR Chart](assets/ris_snr_chart.svg)
 
 Aurora Extreme Orchestrator (AURORA-X) is a research-grade C++ simulation and orchestration framework for advanced wireless and hybrid communication systems. It is designed to model, test, and optimize extreme field scenarios involving energy-constrained nodes, reconfigurable intelligent surfaces (RIS), and secure data delivery using modern cryptography (Ed25519).
 
