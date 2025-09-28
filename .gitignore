@@ -1,0 +1,32 @@
+# Compilati e temporanei
+*.exe
+*.obj
+*.o
+*.out
+*.log
+*.tmp
+*.bak
+*.swp
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# Visual Studio Code
+.vscode/
+
+# Cartelle di sistema
+.DS_Store
+Thumbs.db
+
+# Backup di sistema
+*~
+
+# Python/venv (se presenti)
+__pycache__/
+*.pyc
+.venv/
+venv/
