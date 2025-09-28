@@ -32,6 +32,7 @@ PoD-M root=... sig=...
 RIS=16 illum=0
 >>> SUCCESS
 ```
+**Status**: ✅ Functional - Successfully tested on Windows 10/11 with MinGW-w64
 
 ## Usage
 
