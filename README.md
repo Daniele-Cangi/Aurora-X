@@ -1,4 +1,4 @@
-# Aurora Extreme Orchestrator
+![aurora_banner_svg](https://github.com/user-attachments/assets/50696678-41e5-4f89-98e7-c25780a898b3)# Aurora Extreme Orchestrator
 
 Aurora Extreme Orchestrator (AURORA-X) is a research-grade C++ simulation and orchestration framework for advanced wireless and hybrid communication systems. It is designed to model, test, and optimize extreme field scenarios involving energy-constrained nodes, reconfigurable intelligent surfaces (RIS), and secure data delivery using modern cryptography (Ed25519).
 
