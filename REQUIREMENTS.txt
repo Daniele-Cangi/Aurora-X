@@ -1,0 +1,42 @@
+# Aurora-X Requirements
+
+## Software Requirements
+- C++17 compatible compiler (e.g., g++, clang++)
+- [libsodium](https://libsodium.gitbook.io/doc/) (for Ed25519 cryptography)
+- CMake (optional, for advanced builds)
+- Git (for version control)
+- Visual Studio Code or another C++ IDE (recommended)
+
+## Platform Support
+- Windows (tested with MinGW-w64)
+- Linux (tested with GCC/Clang)
+- macOS (should work with Clang and Homebrew-installed libsodium)
+
+## Build Instructions
+1. Install a C++17 compiler and libsodium.
+2. Clone the repository:
+   ```sh
+   git clone https://github.com/Daniele-Cangi/Aurora-X.git
+   cd Aurora-X
+   ```
+3. Build the main orchestrator:
+   ```sh
+   g++ -std=c++17 aurora_x.cpp -o aurora_x -lsodium
+   ```
+4. Run:
+   ```sh
+   ./aurora_x
+   ```
+
+## Optional/Advanced
+- CMake build scripts can be added for multi-platform support.
+- For Windows, use vcpkg or MSYS2 to install libsodium easily.
+- For large simulations, more RAM/CPU is recommended.
+
+## External Dependencies
+- [libsodium](https://libsodium.gitbook.io/doc/): cryptographic library for Ed25519
+
+## Notes
+- No external Python or Java dependencies.
+- All code is C++ and self-contained except for libsodium.
+- For commercial/industrial use, a separate license is required (see LICENSE).
