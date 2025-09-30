@@ -1,192 +1,139 @@
-
-# Aurora X
-
-## Performance Results
-### Energy Consumption vs Deadline Constraint
-
-![Energy Consumption Chart](assets/energy_deadline_chart.svg)
-
-### Adaptive FEC Overhead vs System Parameters
-
-![FEC Adaptation Chart](assets/fec_adaptation_chart.svg)
-
-### RIS Configuration Impact on SNR Performance
-
-![RIS SNR Chart](assets/ris_snr_chart.svg)
-
-Aurora Extreme Orchestrator (AURORA-X) is a research-grade C++ simulation and orchestration framework for advanced wireless and hybrid communication systems. It is designed to model, test, and optimize extreme field scenarios involving energy-constrained nodes, reconfigurable intelligent surfaces (RIS), and secure data delivery using modern cryptography (Ed25519).
-
-**Status**: ✅ Functional - Successfully tested on Windows 10/11 with MinGW-w64
-
-## Key Features
-
-- **Ed25519 Cryptography**: Secure keypair generation, message signing, and signature verification using libsodium (or a mock fallback).
-- **Fountain/RaptorQ Coding**: Simulated FEC (Forward Error Correction) for robust data transmission over unreliable channels.
-- **RIS/Channel Modeling**: Models multi-hop, multi-bounce, and RIS-assisted wireless propagation, including realistic channel fading and SNR calculations.
-- **Energy-Aware Nodes**: Each node has a battery model, energy harvesting, and consumption logic.
-- **Adaptive Orchestration**: The system adapts transmission strategies (mode, redundancy, duty cycle, etc.) based on scenario parameters and feedback.
-- **Token/Bundle System**: Secure, signed tokens and bundles for access control and data delivery.
-- **Anti-Fingerprinting**: Dynamic preamble, bandwidth, and timing variations to prevent protocol detection.
-- **Covert Channels**: Hidden emergency signaling capabilities within normal data transmission.
-- **UCB Bandit Optimization**: Machine learning-based adaptive decision making for optimal performance.
-
-## Performance Highlights
-
-- **100% Delivery Success Rate** across 42 test scenarios
-- **68% Energy Reduction** through adaptive deadline optimization  
-- **13dB SNR Improvement** with RIS tile scaling (0→24 tiles)
-- **Dynamic FEC Adaptation** from 12% to 3% overhead based on conditions
-- **Real-time Parameter Optimization** using multi-armed bandit algorithms
-
-## How It Works
-
-1. **Initialization**: The orchestrator parses an "intention" string (e.g., `deadline:600; reliability:0.99; duty:0.01; ris:16;`) to configure the scenario.
-2. **Network Setup**: Nodes (source, destination, RIS) are created and positioned. The channel and energy models are initialized.
-3. **Token Generation**: Secure tokens are created, signed, and bundled for delivery.
-4. **Encoding & Transmission**: Data is encoded with FEC and transmitted using adaptive strategies (RF, IR, backscatter, etc.), considering energy and channel state.
-5. **Delivery & Verification**: The destination verifies the signature and integrity of received data. Proof-of-delivery is generated and logged.
-6. **Adaptivity**: The orchestrator dynamically adjusts transmission parameters based on feedback, urgency, and energy constraints using UCB bandit optimization.
-
-## Example Output
-```
-=== AURORA-X — Extreme Field Orchestrator ===
-DELIVERED ✓ sig=OK payload=ACCESS:TEMP_KEY=abc123;ZONE=42;TTL=24h;CLASS=NORM;
-PoD-M root=60c5a7ed40da6790... sig=YjlkODEzYjljZjI0...
- - SRC SoC=62% buf=3
- - DST SoC=62% buf=1
-RIS=16 illum=0
->>> SUCCESS
-```
-
-## Applications
-
-### **Critical Infrastructure & Defense**
-- Military communications in contested environments
-- Emergency response networks during disasters
-- Border security and surveillance systems
-- Critical infrastructure protection (power grids, water systems)
-- Covert intelligence gathering networks
-
-### **Industrial IoT & Smart Cities**
-- Smart manufacturing with anti-jamming requirements
-- Autonomous vehicle communication networks
-- Smart grid energy management systems
-- Industrial process monitoring in harsh environments
-- Smart city sensor networks with stealth capabilities
-
-### **Financial & High-Security Communications**
-- Secure trading floor communications
-- Banking infrastructure with stealth requirements
-- Cryptocurrency mining pool coordination
-- High-frequency trading networks
-- Financial data transmission in adversarial environments
-
-### **Research & Academic Applications**
-- Next-generation wireless and hybrid networks research
-- Secure IoT and sensor network simulation
-- Energy-aware protocol design and optimization
-- RIS-assisted communication studies
-- Advanced networking concepts demonstration
-
-### **Commercial & Enterprise**
-- Supply chain tracking with anti-counterfeiting measures
-- Remote asset monitoring in challenging environments
-- Covert corporate communications
-- Data center interconnect optimization
-- Industrial automation in contested RF environments
-
-### **Humanitarian & Emergency Services**
-- Disaster relief coordination networks
-- Remote medical monitoring systems
-- Search and rescue communication systems
-- Refugee camp connectivity solutions
-- Emergency services in compromised infrastructure
-
-## Usage
-
-### **Quick Start**
-
-1. **Build** (requires g++ and libsodium):
-   ```sh
-   g++ -std=c++17 aurora_x.cpp -o aurora_x -lsodium
-   ```
-
-2. **Run**:
-   ```sh
-   ./aurora_x
-   ```
-
-3. **Modify Intention**: Edit the intention string in `aurora_x.cpp` to test different scenarios:
-   ```cpp
-   // Example intentions
-   "deadline=5s reliability=0.95 duty=10% backscatter=on ris=16"
-   "deadline=1s reliability=0.99 duty=5% emergency=true"
-   "deadline=30s reliability=0.8 duty=25% optical=on ris=8"
-   ```
-
-### **Development Build**
-For development with all features enabled:
-```sh
-g++ -std=c++20 -O3 -pthread -DFIELD_BUILD -DAURORA_USE_REAL_CRYPTO \
-    aurora_x.cpp -lsodium -o aurora_x_field
-```
-
-### **Testing Crypto Functions**
-Test the cryptographic subsystem:
-```sh
-g++ -std=c++17 test_aurora_extreme.cpp -o test_aurora_extreme -lsodium
-./test_aurora_extreme
-```
-
-## Architecture
-
-Aurora consists of three main components:
-
-- **`aurora_hal.hpp`** - Hardware Abstraction Layer with radio, RIS, and physical world modeling
-- **`aurora_extreme.hpp`** - Cryptography, FEC, telemetry, and optimization engine
-- **`aurora_x.cpp`** - End-to-end orchestrator and main application logic
-
-The system uses a modular design allowing easy extension for new protocols, hardware platforms, and optimization algorithms.
-
-## Requirements
-
-- **Compiler**: C++17 or newer (C++20 recommended)
-- **Cryptography**: [libsodium](https://libsodium.gitbook.io/doc/) for Ed25519 operations
-- **Build Tools**: g++ (MinGW-w64 on Windows, GCC/Clang on Linux/Mac)
-- **Optional**: RaptorQ library for production FEC (fallback LT codes included)
-
-### **Platform Support**
-- ✅ Windows 10/11 (MinGW-w64, Visual Studio)
-- ✅ Linux (GCC, Clang)
-- ✅ macOS (Clang, GCC via Homebrew)
-
-## Performance Validation
-
-Aurora has been extensively tested across multiple scenarios:
-
-| Metric | Value | Description |
-|--------|-------|-------------|
-| **Success Rate** | 100% | Delivery success across all test scenarios |
-| **Energy Efficiency** | -68% | Reduction through adaptive optimization |
-| **SNR Improvement** | +13dB | With optimal RIS configuration |
-| **FEC Adaptation** | 12%→3% | Dynamic overhead based on conditions |
-| **Test Coverage** | 42 scenarios | Comprehensive parameter space validation |
-
-## Contributing
-
-This project is currently in research and demonstration phase. For collaboration inquiries, feature requests, or integration discussions, please contact the maintainer.
-
-## License
-
-This software is proprietary and provided for evaluation, research, and demonstration purposes only.
-Commercial, industrial, or production use is strictly prohibited without the express written consent of the copyright holder.
-
-For commercial licensing and partnership opportunities, contact: **Daniele Cangi** ([GitHub Profile](https://github.com/Daniele-Cangi))
-
-See the LICENSE file for full terms and conditions.
+# AuroraNet: Intent-Driven Resilient Communications Framework  
+*(Whitepaper Draft – 2025)*
 
 ---
 
-**Aurora Extreme Orchestrator** - Redefining adaptive communication systems for the next generation of wireless networks.
+## Abstract
+AuroraNet is a novel **intent-driven communication framework** designed for resilient data delivery across heterogeneous substrates, ranging from radio-frequency (LoRa, optical IR, backscatter) to Internet overlay (UDP/QUIC). Unlike conventional protocols focused on packets, sockets, and throughput, AuroraNet introduces a **cognitive optimizer** that operates on *intention parameters* (deadline, reliability, duty-cycle, stealth). By combining **fountain codes**, **cross-layer optimization**, and **proof-of-delivery tokens**, AuroraNet achieves unprecedented performance in harsh conditions.  
 
-For technical documentation and implementation details, see the inline code comments and function documentation.
+Recent tests (2025) demonstrate robust performance under stress, with successful delivery even in tight deadlines and hostile network environments. This document consolidates design, architecture, validation, and roadmap toward production-ready deployment.
+
+---
+
+## 1. Introduction
+- **Problem**: Classical protocols (TCP, UDP, QUIC) optimize for throughput and fairness, but fail under unreliable or constrained channels.  
+- **Vision**: AuroraNet redefines communication as **fluid information states** shaped by intentions, rather than static packet routing.  
+- **Contribution**: a unified framework that bridges **radio substrates** and **Internet overlays**, with cryptographic verifiability and stealth properties.  
+
+---
+
+## 2. Background & Related Work
+- **Fountain Codes (LT, RaptorQ)** → efficient data delivery under loss.  
+- **DTN (Delay Tolerant Networking, NASA)** → resilience in interplanetary links.  
+- **RIS (Reconfigurable Intelligent Surfaces)** → beamforming and capacity shaping.  
+- **Overlay anonymity networks (Tor, I2P)** → resilience but with high latency, not intent-driven.  
+
+AuroraNet builds on these but diverges: not throughput-driven, but **intention-driven**.
+
+---
+
+## 3. Architecture Overview
+
+### 3.1 Hardware Abstraction Layer (HAL)
+- **Radio HAL**: LoRa, IR, backscatter modules.  
+- **SocketHAL (Internet Overlay)**: UDP datagrams with QUIC-style pacing, endpoint hopping, token-bucket duty-cycle control.  
+
+### 3.2 Optimizer
+- Decision based on **Intention struct**:  
+  - `deadline_s`  
+  - `reliability`  
+  - `duty_frac`  
+  - `stealth`  
+- Adaptive mode switching: RF ↔ IR ↔ backscatter ↔ overlay.  
+- Cross-layer design: physical, link, network, application unified.  
+
+### 3.3 Coding Layer
+- LT / RaptorQ fountain codes.  
+- **Early-exit decoding**: transmission stops once enough symbols are decoded.  
+- **Rotation & de-duplication**: ensures unique symbol progression.  
+
+### 3.4 Token & Security Layer
+- **Ephemeral Ed25519 keys**: every node signs outgoing messages.  
+- **PoD-M (Proof-of-Delivery with Merkle)**: verifiable cryptographic receipts.  
+- **Covert embedding**: tokens hidden in redundancy bits for stealth channels.  
+
+### 3.5 Telemetry
+- Radio: SNR, PER, fading models.  
+- Overlay: RTT, jitter, loss mapped to SNR-like metrics.  
+- Feedback integrated into optimizer loop.  
+
+---
+
+## 4. Novel Patterns
+- **Hidden Urgency Calculus**: exponential urgency near deadlines.  
+- **Covert Capacity Reserve**: redundancy doubles as stealth signaling.  
+- **Cross-Layer Covert Channel**: steganography via adaptive overhead.  
+- **Distributed Optimization**: no single-point control, emergent strategies.  
+
+---
+
+## 5. Experimental Validation (2025)
+
+### 5.1 Batch & Stress Tests
+- Up to 150 packets simultaneous across 3 continents.  
+- 0% loss under heavy conditions (OpenDNS Europe ↔ Taiwan).  
+- Stress recovery observed: initial latency spikes converge to stable throughput.
+
+### 5.2 UDP Extreme Tests
+- **Echo test**: RTT and loss measured via real DNS servers.  
+- **Seq test**: sequence integrity maintained across NAT/firewalls.  
+- **Bidir test**: bidirectional state synchronization successful.
+
+### 5.3 Unit Test: De-dup & TX Rotation
+- Prevents stalls caused by duplicate symbols (`have=1/2`).  
+- TX rotation ensures unique symbol progression.  
+- PASS in both duplicate-forced and rotation-active cases.  
+
+### 5.4 Deadline Sweep
+- Sweep of deadlines from 0.5s to 10s.  
+- All deliveries **SUCCESS**, actual times 0.18–0.37s.  
+- Early-exit FEC drastically reduces latency.  
+
+### 5.5 Regression Batch Post-Fix
+- After rotation fix: **10/10 SUCCESS** with 0.1–0.5s delivery times.  
+- Bottleneck eliminated → Aurora achieves deadline-beating reliability.  
+
+---
+
+## 6. Comparative Analysis
+| Metric | TCP | UDP | QUIC | **AuroraNet** |
+|--------|-----|-----|------|---------------|
+| Deadline compliance | Weak | None | Moderate | **Strong (early-exit)** |
+| Reliability | Congestion-based | App-dependent | Good | **Adaptive, intent-driven** |
+| Stealth | None | None | Low | **Built-in (jitter, covert)** |
+| Proof of delivery | None | None | None | **PoD-M cryptographic** |
+| Substrate flexibility | IP only | IP only | IP only | **RF + Optical + Overlay** |
+
+---
+
+## 7. Limitations
+- RaptorQ not yet fully integrated (LT baseline).  
+- Overlay relays require dedicated responder nodes.  
+- ML optimization (reinforcement learning) not yet implemented.  
+- Large-scale deployment (>100 relay nodes) still pending.  
+
+---
+
+## 8. Roadmap
+1. **Integration of RaptorQ (RFC 6330)**.  
+2. Reinforcement learning for adaptive scheduling.  
+3. Global overlay testbed (100+ relays).  
+4. RIS hardware deployment for physical beamforming.  
+5. Publication & patent filing.  
+
+---
+
+## 9. Conclusion
+AuroraNet demonstrates a **conceptual and practical leap** beyond conventional communication systems:  
+- From packets to **fluid information states**.  
+- From protocols to **intent-driven optimizers**.  
+- From unverifiable delivery to **cryptographic proofs**.  
+
+With a robust foundation validated by tests in 2025, AuroraNet is poised to evolve into a **revolutionary communication substrate** bridging RF and Internet domains.
+
+---
+
+## License
+**Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0)**  
+This work is provided strictly for research and personal exploration.  
+Commercial use, redistribution, or creation of derivative works is prohibited without explicit permission.
