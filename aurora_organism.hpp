@@ -428,6 +428,16 @@ public:
     
 private:
     // Aggiorna stato adattivo: memoria immunitaria + panic mode
+    // 
+    // Questo metodo implementa il "sistema immunitario adattivo" dell'organismo:
+    // - Memoria immunitaria: ricorda overhead ottimali per tipo di flusso
+    // - Risposta infiammatoria: aumenta ridondanza dopo fallimenti (infezione)
+    // - Panic mode: reazione "adrenalinica" per flussi critici (citochine)
+    // - Dimagrimento omeostatico: riduce overhead dopo periodi di successo stabile
+    //
+    // Parallelo biologico:
+    //   Fallimento → Infezione → Infiammazione (overhead↑) → Panic boost (adrenalina)
+    //   Successo prolungato → Sistema calmo → Dimagrimento graduale (overhead↓)
     void update_flow_state(
         const FlowProfile& profile,
         FlowState& st,
@@ -436,12 +446,14 @@ private:
         int symbols_used,
         int total_symbols_seen
     ) {
-        // Costanti
-        const double MIN_OV = 1.0;
-        const double MAX_OV = 4.0;
-        const double alpha_cov = 0.2;  // EWMA per coverage
-        const double alpha_up = 0.10;  // reazione veloce al pericolo
-        const double alpha_down = 0.02; // rilassamento lento
+        // ============================================================================
+        // COSTANTI ADATTIVE (parametri del sistema immunitario)
+        // ============================================================================
+        const double MIN_OV = 1.0;        // Overhead minimo (valore genetico base)
+        const double MAX_OV = 4.0;        // Overhead massimo (soglia di sicurezza)
+        const double alpha_cov = 0.2;     // EWMA coefficient per avg_coverage (memoria a breve termine)
+        const double alpha_up = 0.10;     // Tasso di crescita difese (reazione veloce al pericolo)
+        const double alpha_down = 0.02;   // Tasso di rilassamento (dimagrimento lento, conservativo)
         
         // Aggiorna avg_coverage (EWMA)
         if (st.success_count + st.fail_count == 0) {
@@ -502,10 +514,17 @@ private:
             }
         }
         
-        // FASE 3b TASK 4: Dimagrimento lento basato sullo stato calmo
-        // NON dipende da efficiency (che nel test è sempre 1.0)
-        const int GOOD_STREAK_THRESHOLD = 4;      // almeno 4 successi "calmi" di fila
-        const double COV_GOOD_THRESHOLD = 0.85;   // copertura media alta (abbassato da 0.90 per attivazione più realistica)
+        // ============================================================================
+        // FASE 3b TASK 4: Dimagrimento omeostatico (homeostatic weight loss)
+        // ============================================================================
+        // Attivazione: sistema calmo (panic=0) + successi consecutivi + alta copertura
+        // Questo meccanismo NON dipende da efficiency (che nel test è sempre 1.0),
+        // ma solo su streak di successi e stato del sistema.
+        // Parallelo biologico: dopo un periodo di salute stabile, il sistema può
+        // permettersi di "dimagrire" (ridurre overhead) per risparmiare energia.
+        // ============================================================================
+        const int GOOD_STREAK_THRESHOLD = 4;      // Soglia: almeno 4 successi consecutivi "calmi"
+        const double COV_GOOD_THRESHOLD = 0.85;   // Soglia: copertura media > 85% (abbassato da 0.90 per attivazione più realistica)
         
         if (delivered &&
             st.panic_boost == 0 &&                // nessun adrenalina attiva

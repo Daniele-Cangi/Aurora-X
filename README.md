@@ -132,15 +132,42 @@ RIS=16 illum=0
 
 ### Adaptive Transport Layer (FASE 3b)
 
-Aurora-X implements `AlienFountainOrganism`, a biologically-inspired adaptive transport mechanism with:
+Aurora-X implements `AlienFountainOrganism`, a biologically-inspired adaptive transport mechanism that mimics immune system behavior.
 
-- **Flow Classification**: Automatic classification into NERVE (low-latency critical), GLAND (high-reliability), or MUSCLE (bulk data)
-- **Payload Segmentation**: Critical vs bulk portions encoded separately for optimal redundancy allocation
-- **Immune Memory**: Adaptive overhead management based on success/failure streaks
-  - **Panic Mode**: Increased redundancy for NERVE/GLAND flows after failures
-  - **Gradual Weight Loss**: After sustained success (4+ consecutive deliveries, no panic, avg_coverage > 0.85), overhead gradually decreases to save energy
+#### Flow Classification
 
-The organism exhibits complete biological adaptation: **suffers → gains weight/panic → long calm period → gradually loses weight**.
+Automatic classification into three biological types:
+- **NERVE**: Low-latency critical payloads (deadline < 2s, high reliability) → aggressive redundancy for critical portions
+- **GLAND**: High-reliability events (reliability > 0.95) → balanced redundancy for extreme reliability
+- **MUSCLE**: Bulk data transfer (default) → efficient redundancy for throughput
+
+#### Payload Segmentation
+
+Critical vs bulk portions are encoded separately for optimal redundancy allocation, allowing independent adaptation of overhead factors.
+
+#### Immune Memory & Adaptive Behavior
+
+The organism maintains per-flow state with "immune memory" that adapts overhead based on historical performance:
+
+**Defense Mechanisms (Inflammation Response):**
+- **Failure Detection**: Upon delivery failure, overhead increases immediately (`crit_ov`, `bulk_ov` ↑)
+- **Panic Mode**: For NERVE/GLAND flows, activates "panic boost" (3 cycles of 2x redundancy) - analogous to cytokine release
+- **Repeated Failures**: When `bad_streak >= 3`, additional overhead boost triggers (prolonged stress response)
+
+**Homeostatic Weight Loss:**
+- **Activation Conditions**: 
+  - `good_streak >= 4` (sustained success)
+  - `panic_boost == 0` (system calm)
+  - `avg_coverage >= 0.85` (high coverage maintained)
+- **Behavior**: Gradually reduces overhead (`crit_ov`, `bulk_ov` ↓) by `alpha_down` per cycle
+- **MUSCLE Bonus**: MUSCLE flows can reduce overhead 1.5x faster (more aggressive weight loss)
+
+**Biological Adaptation Cycle:**
+```
+Suffer (failures) → Gain Weight (overhead↑, panic) → Calm Period (successes) → Lose Weight (overhead↓)
+```
+
+This creates a complete **homeostatic loop** that balances energy efficiency with delivery reliability.
 
 **Testing adaptive behavior:**
 ```sh
@@ -245,6 +272,10 @@ Decision engine based on **Intention struct**, adaptive mode switching (RF ↔ I
 - [libsodium](https://libsodium.gitbook.io/doc/) (recommended for real Ed25519)
 - CMake 3.20+ (optional, for build system)
 - g++ (MinGW-w64 on Windows, GCC/Clang on Linux/Mac)
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history and changes.
 
 ## License
 
