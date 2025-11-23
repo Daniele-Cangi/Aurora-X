@@ -22,6 +22,9 @@
 using namespace std;
 
 #include "aurora_hal.hpp"
+#ifdef _WIN32
+#undef byte
+#endif
 
 // ===== CRYPTO (Ed25519) =====
 namespace CRYPTO {
@@ -40,28 +43,11 @@ namespace CRYPTO {
 #endif
 }
 
-// ===== Fountain / RaptorQ Adapter =====
+// ===== Fountain / LT-based FEC =====
 namespace fec {
   struct Fp{ uint32_t seed, deg; vector<uint8_t> data; };
-#ifdef AURORA_USE_RAPTORQ_REAL
-  // Incolla qui l’amalgamation RaptorQ reale e mappa alle chiamate (stub compatibile intanto)
-  struct Encoder{
-    vector<uint8_t> raw; size_t T; int K; int esi=0;
-    Encoder(const vector<uint8_t>& bytes, size_t sym=256):raw(bytes),T(sym){ K=(bytes.size()+T-1)/T; }
-    int N() const { return K; }
-    Fp emit(){ size_t off=(size_t)(esi%K)*T; vector<uint8_t> chunk(T,0); for(size_t i=0;i<T && off+i<raw.size(); ++i) chunk[i]=raw[off+i]; return Fp{(uint32_t)esi++,1,move(chunk)}; }
-  };
-  struct Decoder{
-    int K; size_t T; map<int, vector<uint8_t>> got;
-    Decoder(int n,size_t sym):K(n),T(sym){}
-    void push(const Fp& p){ got[(int)p.seed]=p.data; }
-    pair<bool, vector<uint8_t>> solve(){
-      if((int)got.size()<K) return {false,{}};
-      vector<uint8_t> out; out.reserve(K*T); for(int i=0;i<K;++i){ auto it=got.find(i); if(it==got.end()) return {false,{}}; out.insert(out.end(), it->second.begin(), it->second.end()); } return {true,out};
-    }
-  };
-#else
-  // LT fallback “infinite-ish”
+  
+  // LT fallback "infinite-ish" fountain code implementation
   struct Encoder{
     vector<vector<uint8_t>> sym; size_t S;
     Encoder(const vector<uint8_t>& bytes, size_t s=256):S(s){ size_t n=(bytes.size()+S-1)/S; sym.assign(n, vector<uint8_t>(S,0)); for(size_t i=0;i<bytes.size(); ++i) sym[i/S][i%S]=bytes[i]; }
@@ -81,9 +67,19 @@ namespace fec {
       vector<uint8_t> out; out.reserve(n*S); for(int i=0;i<n;++i) out.insert(out.end(), sym[i].begin(), sym[i].end()); return {true,out};
     }
   };
-#endif
 
-  struct Pkt{ Fp fp; uint32_t seq; string token_id; };
+  // Tipo di segmento: parte critica vs bulk
+  enum class SegmentKind : uint8_t {
+      CRITICAL,  // parte critica (es. header logico)
+      BULK       // corpo bulk (default)
+  };
+
+  struct Pkt{ 
+      Fp fp; 
+      uint32_t seq; 
+      string token_id; 
+      SegmentKind kind = SegmentKind::BULK;  // default: bulk
+  };
 }
 
 // ===== PoD-Merkle =====
@@ -209,23 +205,88 @@ namespace cl {
     void update(int idx, double r){ N[idx]++; reward[idx]+=r; }
   };
 
+  // FASE 4: FlowHealth struct per tracking stato per FlowClass
+  struct FlowHealth {
+    double ewma_coverage = 0.0;
+    double ewma_fail_rate = 0.0;
+    double ewma_panic_rate = 0.0;
+    int success_count = 0;
+    int fail_count = 0;
+    int recent_good_streak = 0;
+    int recent_bad_streak = 0;
+  };
+
+  // FASE 4: Mode enum per Optimizer
+  enum class Mode {
+    CONSERVATIVE,
+    NORMAL,
+    AGGRESSIVE
+  };
+
   struct Optimizer{
     UCB bandit;
+    // Hysteresis state for ARGMAX selector
+    phy::Mode last_mode = phy::Mode::RF;
+    double hysteresis_dB = 1.0;
+    
+    // FASE 4: Operating mode
+    Mode mode_ = Mode::NORMAL;
+    
     static int midx(phy::Mode m){ return m==phy::Mode::RF?0: (m==phy::Mode::IR?1:2); }
     static phy::Mode imode(int i){ return i==0?phy::Mode::RF: (i==1?phy::Mode::IR:phy::Mode::BACKSCATTER); }
 
   #include "aurora_intention.hpp"
   Decision joint(const Intention& I, const NetworkState& S, double epoch){
-      int choice = bandit.choose(max(1.0, epoch));
-      phy::Mode m = imode(choice);
+      phy::Mode m = phy::Mode::RF;
+      if(I.selector_argmax){
+        // ARGMAX SNR + hysteresis
+        double snr_rf  = S.chan.snr_est(phy::Mode::RF);
+        double snr_ir  = S.chan.snr_est(phy::Mode::IR);
+        double snr_bs  = S.chan.snr_est(phy::Mode::BACKSCATTER);
+        phy::Mode best = phy::Mode::RF; double best_snr = snr_rf;
+        if(snr_ir  > best_snr){ best=phy::Mode::IR; best_snr=snr_ir; }
+        if(snr_bs  > best_snr){ best=phy::Mode::BACKSCATTER; best_snr=snr_bs; }
+        double prev_snr = S.chan.snr_est(last_mode);
+        double margin   = best_snr - prev_snr;
+        m = (margin > hysteresis_dB ? best : last_mode);
+      } else {
+        // UCB bandit
+        int choice = bandit.choose(max(1.0, epoch));
+        m = imode(choice);
+      }
       if(S.soc_src<0.18) m = (I.allow_backscatter? phy::Mode::BACKSCATTER : m);
+      last_mode = m;
 
       double R = target_R_for(S.prio);
       if(S.emergency_mode) R = max(R, 0.999);
 
+      // FASE 4: Modifica R, budget, cap in base a mode_
+      if (mode_ == Mode::CONSERVATIVE) {
+        // CONSERVATIVE: proteggere NERVE/GLAND, limitare esperimenti/bulk
+        // Aumenta R per flussi critici, riduci cap per limitare bulk
+        if (S.prio == Priority::CRITICAL || S.prio == Priority::NORMAL) {
+          R = max(R, 0.995);  // R più alto per flussi critici
+        }
+      } else if (mode_ == Mode::AGGRESSIVE) {
+        // AGGRESSIVE: più esperimenti su MUSCLE se tutto è stabile
+        // Riduci R leggermente per MUSCLE, aumenta cap per più tentativi
+        if (S.prio == Priority::BULK) {
+          R = max(0.85, R - 0.05);  // R leggermente più basso per bulk
+        }
+      }
+      // NORMAL: comportamento standard (nessuna modifica)
+
       double urg = urgency(S.symbols_have, S.symbols_need, I.deadline_s, S.deadline_left_s);
       double budget = allocate_duty_budget(S.duty_left_rf, urg);
-      int cap = (budget>0.5? 48 : budget>0.25? 32 : 20);
+      
+      // FASE 4: Modifica cap in base a mode_
+      int cap_base = (budget>0.5? 48 : budget>0.25? 32 : 20);
+      int cap = cap_base;
+      if (mode_ == Mode::CONSERVATIVE) {
+        cap = max(12, cap_base - 8);  // Riduci cap per limitare bulk
+      } else if (mode_ == Mode::AGGRESSIVE) {
+        cap = min(64, cap_base + 8);  // Aumenta cap per più tentativi
+      }
 
       double per = per_est(S, m);
       double ps  = 1.0 - per;
@@ -233,11 +294,29 @@ namespace cl {
 
       int redundancy = (int)ceil( log(1.0 - R) / log(per) * 0.6 );
       redundancy = max(5, redundancy);
+      
+      // FASE 4: Modifica redundancy in base a mode_
+      if (mode_ == Mode::CONSERVATIVE && (S.prio == Priority::CRITICAL || S.prio == Priority::NORMAL)) {
+        redundancy = (int)(redundancy * 1.2);  // Aumenta ridondanza per flussi critici
+      } else if (mode_ == Mode::AGGRESSIVE && S.prio == Priority::BULK) {
+        redundancy = max(3, (int)(redundancy * 0.9));  // Riduci leggermente per bulk
+      }
 
       int base_space = (S.soc_src<0.3 ? 18 : 8);
       int jitter = (int)round((1.0 - clamp(S.duty_left_rf,0.0,1.0))*40.0) + (S.soc_src<0.3?12:0);
       int preamble = (int)clamp(8 + (int)(urg*10) + (int)(util::rng.uni()*4), 6, 24);
       int bw = (util::rng.uni()<0.5 ? 125 : 250);
+      
+      // FASE 4: CONSERVATIVE: favorisci modi radio più robusti per NERVE/GLAND
+      if (mode_ == Mode::CONSERVATIVE && (S.prio == Priority::CRITICAL || S.prio == Priority::NORMAL)) {
+        // Se siamo in CONSERVATIVE e il flusso è critico, preferisci RF (più robusto)
+        // ma solo se non è già stato scelto un modo migliore
+        double snr_rf = S.chan.snr_est(phy::Mode::RF);
+        double snr_ir = S.chan.snr_est(phy::Mode::IR);
+        if (snr_rf > snr_ir - 2.0) {  // Se RF è comparabile (entro 2dB), preferisci RF
+          m = phy::Mode::RF;
+        }
+      }
 
       int overhead = redundancy & 0x7FFF;
       if(S.emergency_mode) overhead |= 0x8000;
@@ -247,7 +326,69 @@ namespace cl {
     }
 
     void feedback(phy::Mode m, double reward_val){ bandit.update(midx(m), clamp(reward_val, 0.0, 1.0)); }
+    
+    // FASE 4: Mode getter/setter
+    void set_mode(Mode m) { mode_ = m; }
+    Mode mode() const { return mode_; }
+    
+    // FASE 4: Update mode based on SafetyState and FlowHealth metrics
+    // Forward declaration per SafetyState (definito in AuroraSafetyMonitor.hpp)
+    template<typename SafetyStateType>
+    void update_mode(SafetyStateType safety_state,  // SafetyState enum
+                     const FlowHealth& nerve_health,
+                     const FlowHealth& gland_health,
+                     const FlowHealth& muscle_health) {
+        // Convert SafetyState to int (assumes it can be cast to int: 0=HEALTHY, 1=DEGRADED, 2=CRITICAL)
+        int safety_state_int = static_cast<int>(safety_state);
+        double nerve_fail_rate = nerve_health.ewma_fail_rate;
+        double gland_fail_rate = gland_health.ewma_fail_rate;
+        double muscle_fail_rate = muscle_health.ewma_fail_rate;
+        double nerve_cov = nerve_health.ewma_coverage;
+        double gland_cov = gland_health.ewma_coverage;
+        double muscle_cov = muscle_health.ewma_coverage;
+        
+        Mode old_mode = mode_;
+        
+        // Converti safety_state_int a logica
+        if (safety_state_int == 2) {  // CRITICAL
+            mode_ = Mode::CONSERVATIVE;
+        } else if (safety_state_int == 1) {  // DEGRADED
+            mode_ = Mode::NORMAL;
+        } else {  // HEALTHY
+            // Guarda anche lo stato dei flussi
+            if (nerve_fail_rate < 0.05 &&
+                gland_fail_rate < 0.05 &&
+                nerve_cov > 0.95 &&
+                gland_cov > 0.95) {
+                mode_ = Mode::AGGRESSIVE;
+            } else {
+                mode_ = Mode::NORMAL;
+            }
+        }
+        
+        // Log solo se il modo è cambiato
+        if (old_mode != mode_) {
+            std::string mode_str = (mode_ == Mode::CONSERVATIVE ? "CONSERVATIVE" :
+                                   mode_ == Mode::NORMAL ? "NORMAL" : "AGGRESSIVE");
+            std::cout << "[OPT][MODE] " << mode_str << std::endl;
+        }
+    }
   };
+
+  // T3: AuroraInteractiveConfig per parametri regolabili da file
+  struct AuroraInteractiveConfig {
+    double alpha_up = 0.10;        // reazione immunitaria verso l'alto
+    double alpha_down = 0.02;      // dimagrimento
+    int panic_boost_steps = 3;     // durata adrenalina
+    double success_prob_nerve = 0.95;
+    double success_prob_gland = 0.95;
+    double success_prob_muscle = 0.95;
+  };
+
+  inline AuroraInteractiveConfig& get_interactive_config() {
+    static AuroraInteractiveConfig cfg;
+    return cfg;
+  }
 
 } // namespace cl
 

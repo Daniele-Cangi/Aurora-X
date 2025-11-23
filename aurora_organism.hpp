@@ -172,28 +172,33 @@ private:
     
     static GenoParams params_for(const FlowProfile& profile, const FlowState& st) {
         GenoParams gp{};
+        // T3: Usa valori dalla config interattiva se disponibile
+        auto& cfg = cl::get_interactive_config();
+        double base_alpha_up = cfg.alpha_up;
+        double base_alpha_down = cfg.alpha_down;
+        
         switch (st.genotype) {
             case Genotype::BASELINE:
-                gp.alpha_up = 0.10;
-                gp.alpha_down = 0.02;
+                gp.alpha_up = base_alpha_up;
+                gp.alpha_down = base_alpha_down;
                 gp.panic_multiplier = 1.0;
                 gp.max_overhead = 4.0;
                 break;
             case Genotype::HYPERVIGILANT:
-                gp.alpha_up = 0.15;      // reagisce più forte ai fallimenti
-                gp.alpha_down = 0.01;    // rilassa più lentamente
+                gp.alpha_up = base_alpha_up * 1.5;      // reagisce più forte ai fallimenti
+                gp.alpha_down = base_alpha_down * 0.5;    // rilassa più lentamente
                 gp.panic_multiplier = 2.0;
                 gp.max_overhead = 6.0;
                 break;
             case Genotype::STOIC:
-                gp.alpha_up = 0.05;      // reagisce poco
-                gp.alpha_down = 0.02;
+                gp.alpha_up = base_alpha_up * 0.5;      // reagisce poco
+                gp.alpha_down = base_alpha_down;
                 gp.panic_multiplier = 0.5;
                 gp.max_overhead = 3.5;
                 break;
             case Genotype::EXPERIMENTAL:
-                gp.alpha_up = 0.08;
-                gp.alpha_down = 0.05;    // dimagrisce molto velocemente
+                gp.alpha_up = base_alpha_up * 0.8;
+                gp.alpha_down = base_alpha_down * 2.5;    // dimagrisce molto velocemente
                 gp.panic_multiplier = 0.7;
                 gp.max_overhead = 3.0;
                 break;
@@ -590,8 +595,9 @@ private:
             // Panic Boost per flussi critici
             if (profile.flow_class == FlowClass::NERVE ||
                 profile.flow_class == FlowClass::GLAND) {
-                // Reazione violenta per i prossimi cicli di spawn
-                st.panic_boost = std::max(st.panic_boost, 3); // 3 cicli "adrenalinici"
+                // T3: Usa panic_boost_steps dalla config
+                auto& cfg = cl::get_interactive_config();
+                st.panic_boost = std::max(st.panic_boost, cfg.panic_boost_steps); // cicli "adrenalinici" dalla config
                 // Booster extra immediato (moltiplicato per panic_multiplier)
                 st.crit_overhead += alpha_up * gp.panic_multiplier;   // doppio impatto sul critico
                 
