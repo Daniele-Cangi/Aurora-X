@@ -162,6 +162,8 @@ to bias how aggressively each class should defend or experiment. In the current 
   Real-world UDP demos (local LAN and Internet).
 
 ---
+<img width="2816" height="1536" alt="Gemini_Generated_Image_n0jga2n0jga2n0jg" src="https://github.com/user-attachments/assets/f7726fd8-7921-44e1-9533-207cf81e6458" />
+
 
 ## 4. Build & Run
 
