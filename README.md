@@ -8,6 +8,7 @@
 
 [![Transport CI](https://github.com/Daniele-Cangi/Aurora/actions/workflows/ci.yml/badge.svg)](https://github.com/Daniele-Cangi/Aurora/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Open Source Helpers](https://www.codetriage.com/daniele-cangi/aurora/badges/users.svg)](https://www.codetriage.com/daniele-cangi/aurora)
 
 Aurora is a C++20 systems-research project asking a focused question:
 
