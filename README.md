@@ -1,6 +1,7 @@
 # Aurora
 
-> Bio-inspired adaptive transport and cross-layer control research engine for resilient heterogeneous networks.
+> A systems-research engine for failure-responsive adaptive redundancy and
+> cross-layer control in heterogeneous networks.
 
 <p align="center">
   <img src="docs/images/aurora-architecture-overview.png" alt="Aurora architecture overview showing adaptive FEC, cross-layer control, and heterogeneous links." width="100%">
@@ -51,10 +52,12 @@ intent + deadline + traffic class
  terminal feedback → next plan
 ```
 
-Fixed policies provide stable comparators. `biological-adaptive` carries state
-across generations and may increase protection after failure, then relax after
-successful recovery. All treatments use the same binary; policy selection is a
-runtime argument.
+Fixed policies provide stable comparators. `biological-adaptive` is the
+compatibility identifier for a stateful, failure-responsive redundancy
+controller with hysteretic recovery. It raises protection after a terminal
+failure, applies a bounded three-generation boost and relaxes only after
+sustained high-coverage recovery. All treatments use the same binary; policy
+selection is a runtime argument.
 
 ## What exists today
 
@@ -71,11 +74,23 @@ runtime argument.
 For subsystem details, build profiles, protocol contracts and retained historical
 evidence, see the [long-form technical reference](AURORA_TECHNICAL_REFERENCE.md).
 
+`Orginal/` preserves the pre-overhaul source snapshot for historical comparison.
+It is not part of the active implementation or evidence pipeline. The original
+misspelled path is retained so historical references remain stable.
+
 ## The current experiment
 
 The completed pilot exposed all policies to the same deterministic generation-2
 terminal failure. Generations 0–1 establish the pre-shock state; generation 2 is
 the imposed perturbation; generations 3–7 measure the response.
+
+The frozen `regime-change-v1` condition combines identical adverse forward and
+reverse traces with a receiver-ingress symbol blackout limited to generation 2
+until its receiver-local critical deadline. Descriptors and feedback remain
+available. The blackout is absent in generations 3–7, which continue under the
+same frozen adverse traces for both treatments. The design therefore estimates
+recovery efficiency after this declared isolated blackout; it does not estimate
+behavior under a persistent correlated-failure regime.
 
 <p align="center">
   <img src="docs/images/raw-host-post-shock-study-design-v1.svg" alt="Diagram of the frozen post-shock study: one binary, two runtime policies, a common generation-two failure, five post-shock generations and 23 paired randomized blocks." width="100%">
@@ -103,9 +118,10 @@ remained invariant:
   <img src="docs/images/raw-host-policy-pilot-v1-causal-response.svg" alt="Three plots showing fixed policy protection factors remaining constant while biological-adaptive raises critical and important protection after the imposed generation-two failure." width="100%">
 </p>
 
-Biological adaptation used more initial protection and fewer subsequent repair
-symbols. Against `fixed-class-aware`, its post-shock wire total was 732 versus
-800 in one block and 800 versus 800 in the other:
+The stateful adaptive controller (`biological-adaptive`) used more initial
+protection and fewer subsequent repair symbols. Against `fixed-class-aware`,
+its post-shock wire total was 732 versus 800 in one block and 800 versus 800 in
+the other:
 
 <p align="center">
   <img src="docs/images/raw-host-policy-pilot-v1-efficiency-signal.svg" alt="Stacked initial and repair symbol counts for fixed-class-aware and biological-adaptive in both descriptive pilot blocks." width="100%">
@@ -125,7 +141,12 @@ for offline use.
 
 ## Quick start
 
-Configure the dependency-light research profile:
+> **Security boundary.** The commands below deliberately build the insecure
+> deterministic test profile (`USE_SODIUM=OFF`). Use it for local regression
+> only; it is not valid evidence for authenticated-transport claims. Those
+> claims require the libsodium-enabled profile linked below.
+
+Configure that dependency-light research profile:
 
 ```bash
 cmake -S . -B build \
@@ -156,8 +177,7 @@ python tests/run_process_emulation.py \
   0123456789abcdef
 ```
 
-`USE_SODIUM=OFF` is an insecure deterministic test profile. Authenticated
-transport claims require the libsodium build described in the
+For authenticated transport, use the libsodium-enabled build described in the
 [technical reference](AURORA_TECHNICAL_REFERENCE.md#real-ed25519-build).
 
 ## Evidence discipline
